@@ -1,3 +1,10 @@
+import logging
+log = logging.getLogger(__name__)
+
+import os
+import subprocess
+import threading
+
 from atom.api import Atom, Bool, Float, List, Typed, Value
 from enaml.application import timed_call
 
@@ -137,5 +144,3 @@ class ProcessManager(Atom):
             if self.current_subprocess['process'].poll() is not None:
                 self.current_subprocess = None
         timed_call(1000, self.check_status)
-
-

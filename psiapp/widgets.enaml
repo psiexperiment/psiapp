@@ -1,13 +1,19 @@
+import logging
+log = logging.getLogger(__name__)
+
+from pathlib import Path
+
 from .experiment import Experiment
 
 from cftscal.plugins.widgets import AddItem
 
 from enaml.core.api import Conditional, Looper
-from enaml.layout.api import hbox, spacer, vbox
+from enaml.layout.api import align, hbox, spacer, vbox
 from enaml.drag_drop import DragData, DropAction
+from enaml.styling import StyleSheet, Style, Setter
 from enaml.widgets.api import (
     CheckBox, Container, Feature, Field, Form, HGroup, Label, ObjectCombo,
-    PopupView, PushButton, Setter, Style, StyleSheet, VGroup,
+    PopupView, PushButton, VGroup,
 )
 
 from psi.experiment.api import paradigm_manager
@@ -171,7 +177,7 @@ enamldef ExperimentSequence(Container): experiment_box:
 
                     Looper: mode_loop:
                         attr experiment = loop_item
-                        iterable << loop_item.paradigm.info['modes']
+                        iterable << loop_item.paradigm.info.get('modes', ['Run'])
 
                         PushButton:
                             text = loop_item.capitalize()
@@ -231,10 +237,12 @@ enamldef ExperimentSequence(Container): experiment_box:
                 constraints = [width == 30]
                 text = '⚙'
                 clicked ::
-                    popup = PluginPopup(parent=self,
-                                        experiment=loop_item,
-                                        available_plugins=plugins,
-                                        modes=loop_item.paradigm.info['modes'])
+                    popup = PluginPopup(
+                        parent=self,
+                        experiment=loop_item,
+                        available_plugins=plugins,
+                        modes=loop_item.paradigm.info.get('modes', [])
+                    )
                     popup.show()
 
     Container:
@@ -249,10 +257,12 @@ enamldef ExperimentSequence(Container): experiment_box:
             constraints = [width == 30]
             text = '+'
             clicked ::
-                popup = AddParadigmPopup(parent=self,
-                                         paradigms=paradigm_manager.list_paradigms(paradigm_type),
-                                         experiment_box=experiment_box,
-                                         mode=experiment_box.mode)
+                popup = AddParadigmPopup(
+                    parent=self,
+                    paradigms=paradigm_manager.list_paradigms(paradigm_type),
+                    experiment_box=experiment_box,
+                    mode=experiment_box.mode
+                )
                 popup.show()
 
         # A bit of a hack but enables us to ensure all columns lined up properly
@@ -302,5 +312,3 @@ enamldef AddRemoveCombo(Container): container:
             items = combo.items[:]
             items.remove(combo.selected)
             combo.items = items
-
-

@@ -1,4 +1,11 @@
-from atom.api import Atom, Dict, List, Str, Value
+import logging
+log = logging.getLogger()
+
+from pathlib import Path
+
+from atom.api import Atom, Dict, Enum, List, Str, Value
+
+from psi.experiment.api import paradigm_manager
 
 
 class Experiment(Atom):
@@ -116,5 +123,5 @@ def load_experiments(seq, experiment_class=Experiment):
         s.pop('modes', None)
         mode_notes = s.get('mode_notes', {})
         s['mode_notes'] = {k.lower(): v for k, v in mode_notes.items()}
-        experiemnts.append(experiment_class(**s))
+        experiments.append(experiment_class(**s))
     return experiments
