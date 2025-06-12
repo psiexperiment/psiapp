@@ -1,0 +1,306 @@
+from .experiment import Experiment
+
+from cftscal.plugins.widgets import AddItem
+
+from enaml.core.api import Conditional, Looper
+from enaml.layout.api import hbox, spacer, vbox
+from enaml.drag_drop import DragData, DropAction
+from enaml.widgets.api import (
+    CheckBox, Container, Feature, Field, Form, HGroup, Label, ObjectCombo,
+    PopupView, PushButton, Setter, Style, StyleSheet, VGroup,
+)
+
+from psi.experiment.api import paradigm_manager
+
+
+enamldef AddParadigmPopup(PopupView): popup:
+
+    attr experiment_box
+    attr mode = 'classic'
+    attr paradigms
+    arrow_size = 20
+
+    Container:
+        constraints = [vbox(combo, hbox(spacer(0), pb_add))]
+        ObjectCombo: combo:
+            items = paradigms
+            to_string = lambda x: x.title
+        PushButton: pb_add:
+            text = 'OK'
+            clicked ::
+                exp = Experiment(paradigm=combo.selected)
+                if mode == 'sequence':
+                    exp = exp.freeze(exp.paradigm.info['modes'][0], 'selected')
+                seq = experiment_box.sequence[:]
+                seq.append(exp)
+                experiment_box.sequence = seq
+                popup.close()
+
+
+enamldef PluginPopup(PopupView): popup:
+    attr experiment
+    attr available_plugins
+    attr modes
+    arrow_size = 20
+    VGroup:
+        Form:
+            padding = 0
+            Looper:
+                iterable = modes
+                Label:
+                    text = f'{loop_item.capitalize()} note'
+                Field:
+                    text = experiment.mode_notes.get(loop_item, '')
+                    text ::
+                        experiment.mode_notes[loop_item] = text
+        Looper:
+            iterable = available_plugins
+            CheckBox:
+                checked = bool(loop_item.id in experiment.plugins)
+                checked ::
+                    if checked:
+                        if loop_item.id not in experiment.plugins:
+                            experiment.plugins.append(loop_item.id)
+                    else:
+                        experiment.plugins.remove(loop_item.id)
+                text = loop_item.title
+
+
+enamldef ExperimentSequence(Container): experiment_box:
+
+    attr start_enabled = True
+    attr save = True
+    attr mode = 'classic'
+    attr paradigm_type = 'ear'
+
+    attr sequence
+    attr edit_mode = False
+    attr settings
+    attr autostart = False
+
+    StyleSheet:
+        Style:
+            element = 'Container'
+            style_class = 'hover'
+            Setter:
+                field = 'background'
+                value = 'lightblue'
+
+    layout_constraints => ():
+        # Align the subwidgets vertically
+        widgets = self.visible_widgets()
+        subwidgets = [w.visible_widgets() for w in widgets]
+        return [
+            vbox(*widgets),
+            *[align('width', *c) for c in zip(*subwidgets)],
+            *[align('left', *c) for c in zip(*subwidgets)],
+        ]
+
+    Looper: exp_loop:
+        iterable << experiment_box.sequence
+
+        Container: row:
+            share_layout = True
+            style_class = ''
+
+            features << (Feature.DropEnabled | Feature.DragEnabled)
+
+            drag_start => ():
+                if not edit_mode:
+                    return
+                data = DragData()
+                data.supported_actions = DropAction.Copy
+                i = experiment_box.sequence.index(loop_item)
+                data.mime_data.set_data('text/plain', f'::experiment::{i}'.encode('utf-8'))
+                return data
+
+            drag_enter => (event):
+                if not edit_mode:
+                    return
+                if event.mime_data().has_format('text/plain'):
+                    data = event.mime_data().data('text/plain').decode('utf-8')
+                    if not data.startswith('::experiment::'):
+                        return
+                    else:
+                        self.style_class = 'hover'
+                        event.accept_proposed_action()
+
+            drag_leave => ():
+                self.style_class = ''
+
+            drop => (event):
+                if not edit_mode:
+                    return
+                self.style_class = ''
+                data = event.mime_data().data('text/plain').decode('utf-8')
+                i = int(data.rsplit('::', 1)[1])
+                j = experiment_box.sequence.index(loop_item)
+                sequence = experiment_box.sequence[:]
+                sequence.insert(j, sequence.pop(i))
+                experiment_box.sequence = sequence
+
+            layout_constraints => ():
+                widgets = self.visible_widgets()
+                return [
+                    hbox(*widgets),
+                    align('v_center', *widgets),
+                ]
+            padding = 0
+
+            PushButton:
+                name = 'remove_paradigm'
+                visible << edit_mode
+                constraints = [width == 30]
+                text = '-'
+                clicked ::
+                    seq = experiment_box.sequence[:]
+                    seq.remove(loop_item)
+                    experiment_box.sequence = seq
+
+            Label:
+                text = loop_item.paradigm.title
+
+            Conditional:
+                condition = experiment_box.mode == 'classic'
+
+                HGroup:
+                    padding = 0
+                    spacing = 0
+                    enabled << (experiment_box.start_enabled or edit_mode) and \
+                        settings.process_manager.current_subprocess is None
+
+                    Looper: mode_loop:
+                        attr experiment = loop_item
+                        iterable << loop_item.paradigm.info['modes']
+
+                        PushButton:
+                            text = loop_item.capitalize()
+                            clicked ::
+                                try:
+                                    settings.run_experiment(mode_loop.experiment,
+                                                            loop_item,
+                                                            save=save,
+                                                            autostart=autostart)
+                                except Exception as e:
+                                    log.exception(e)
+                                    critical(experiment_box, 'Error starting experiment', str(e))
+                                # Update the preferences in case new ones were created
+                                preferences.items = [str(p) for p in \
+                                                    mode_loop.experiment.paradigm.list_preferences()]
+
+            Conditional:
+                condition << (mode == 'sequence' and edit_mode)
+
+                ObjectCombo:
+                    items = loop_item.paradigm.info['modes']
+                    selected := loop_item.mode
+
+                Conditional:
+                    condition << (paradigm_type == 'ear')
+
+                    ObjectCombo:
+                        items = ['selected', 'left', 'right']
+                        selected := loop_item.ear
+
+                    Label:
+                        text = f'ear'
+
+            Conditional:
+                condition << (mode == 'sequence' and not edit_mode)
+
+                Conditional:
+                    condition << (paradigm_type == 'ear')
+
+                    Label:
+                        text = f'{loop_item.mode} {loop_item.ear} ear'
+
+                Conditional:
+                    condition << (paradigm_type != 'ear')
+
+                    Label:
+                        text = loop_item.mode
+
+            ObjectCombo: preferences:
+                items = [str(p) for p in loop_item.paradigm.list_preferences()]
+                selected := loop_item.preference
+                to_string = lambda x: Path(x).stem
+
+            PushButton:
+                attr plugins = [p for p in loop_item.paradigm.plugins \
+                                if not p.required and not p.info.get('hide', False)]
+                constraints = [width == 30]
+                text = '⚙'
+                clicked ::
+                    popup = PluginPopup(parent=self,
+                                        experiment=loop_item,
+                                        available_plugins=plugins,
+                                        modes=loop_item.paradigm.info['modes'])
+                    popup.show()
+
+    Container:
+        padding = 0
+        layout_constraints => ():
+            return [
+                hbox(*self.visible_widgets()),
+                align('v_center', *self.visible_widgets()),
+            ]
+        PushButton: pb_add_seq:
+            visible << edit_mode
+            constraints = [width == 30]
+            text = '+'
+            clicked ::
+                popup = AddParadigmPopup(parent=self,
+                                         paradigms=paradigm_manager.list_paradigms(paradigm_type),
+                                         experiment_box=experiment_box,
+                                         mode=experiment_box.mode)
+                popup.show()
+
+        # A bit of a hack but enables us to ensure all columns lined up properly
+        Label:
+            pass
+        Label:
+            pass
+        Label:
+            pass
+        Label:
+            pass
+        Label:
+            pass
+
+
+enamldef AddRemoveCombo(Container): container:
+
+    alias items: combo.items
+    alias selected: combo.selected
+    alias remove_clicked: pb_remove.clicked
+
+    attr regex = '.*'
+    attr editable = True
+    attr removed
+
+    padding = 0
+
+    constraints << [hbox(combo, hbox(pb_add, pb_remove, spacing=0))] if editable else [hbox(combo)]
+
+    ObjectCombo: combo:
+        pass
+
+    PushButton: pb_add:
+        text = '+'
+        constraints = [width == 30]
+        visible << editable
+        clicked ::
+            popup = AddItem(parent=self, combo=combo, regex=regex)
+            popup.show()
+
+    PushButton: pb_remove:
+        text = '-'
+        constraints = [width == 30]
+        visible << editable
+        enabled << bool(combo.items)
+        clicked ::
+            items = combo.items[:]
+            items.remove(combo.selected)
+            combo.items = items
+
+

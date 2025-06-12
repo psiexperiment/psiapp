@@ -1,0 +1,27 @@
+[project]
+name = "psiapp"
+description = "Tools for supporting experiment launchers using psiexperiment"
+requires-python = ">=3.7"
+license = {file = "license.txt"}
+authors = [
+    {name = "Brad Buran", email="buran@ohsu.edu"},
+]
+maintainers = [
+    {name = "Brad Buran", email="buran@ohsu.edu"},
+]
+dependencies = [
+    "enaml[qt6-pyside] >=0.13.0",
+]
+dynamic = ["version"]
+
+[build-system]
+requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "psiapp/version.py"
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: runs tests that will otherwise be skipped because they are slow"
+]
