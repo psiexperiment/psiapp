@@ -10,6 +10,7 @@ from cftscal.plugins.widgets import AddItem
 from enaml.core.api import Conditional, Looper
 from enaml.layout.api import align, hbox, spacer, vbox
 from enaml.drag_drop import DragData, DropAction
+from enaml.stdlib.message_box import critical
 from enaml.styling import StyleSheet, Style, Setter
 from enaml.widgets.api import (
     CheckBox, Container, Feature, Field, Form, HGroup, Label, ObjectCombo,
