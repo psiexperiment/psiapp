@@ -25,6 +25,8 @@ class ProcessManager(Atom):
     '''
     Manager for running one or more psiexperiments in sequence
     '''
+    #: List of callbacks requesting notifications
+    callbacks = List()
 
     #: List of commands the order they should be executed.
     commands = List()
@@ -74,7 +76,7 @@ class ProcessManager(Atom):
 
     def open_next_subprocess(self):
         try:
-            cmd, env = self.commands.pop(0)
+            cmd, env, uid = self.commands.pop(0)
         except IndexError:
             log.info('No more commands queued')
             return
@@ -86,17 +88,27 @@ class ProcessManager(Atom):
             'running': False,
             'client_id': process.pid,
             'state': None,
+            'uid': uid,
         }
-        self.subprocesses.append(self.current_subprocess)
+        self.subprocesses.append((self.current_subprocess, uid))
+
+    def subscribe(self, cb):
+        self.callbacks.append(cb)
+
+    def notify(self, *args, **kw):
+        for cb in self.callbacks:
+            cb(*args, **kw)
 
     @synchronized
     def recv_cb(self, message):
         # Find which process the message is from.
-        for process in self.subprocesses:
+        for (process, uid) in self.subprocesses:
             if process['client_id'] == message['client_id']:
                 break
         else:
             raise ValueError(f'No process with client ID {process["client_id"]}')
+
+        self.notify(message['event'], uid=uid)
 
         if message['event'] == 'plugins_started':
             process['state'] = 'connected'
@@ -127,9 +139,9 @@ class ProcessManager(Atom):
             self.subprocesses.remove(process)
 
     @synchronized
-    def add_command(self, cmd, env):
+    def add_command(self, cmd, env, uid=None):
         log.info('Queueing command: %s', ' '.join(cmd))
-        self.commands.append((cmd, env))
+        self.commands.append((cmd, env, uid))
 
     @synchronized
     def pause_sequence(self):
@@ -138,9 +150,10 @@ class ProcessManager(Atom):
 
     @synchronized
     def check_status(self):
-        self.subprocesses = [p for p in self.subprocesses if p['process'].poll() is None]
+        self.subprocesses = [p for p in self.subprocesses if p[0]['process'].poll() is None]
         # This means the current subprocess has been closed.
         if self.current_subprocess is not None:
             if self.current_subprocess['process'].poll() is not None:
+                self.notify('subprocess_exited', self.current_subprocess['uid'])
                 self.current_subprocess = None
         timed_call(1000, self.check_status)

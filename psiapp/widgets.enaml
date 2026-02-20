@@ -191,9 +191,6 @@ enamldef ExperimentSequence(Container): experiment_box:
                                 except Exception as e:
                                     log.exception(e)
                                     critical(experiment_box, 'Error starting experiment', str(e))
-                                # Update the preferences in case new ones were created
-                                preferences.items = [str(p) for p in \
-                                                    mode_loop.experiment.paradigm.list_preferences()]
 
             Conditional:
                 condition << (mode == 'sequence' and edit_mode)
@@ -228,7 +225,7 @@ enamldef ExperimentSequence(Container): experiment_box:
                         text = loop_item.mode
 
             ObjectCombo: preferences:
-                items = [str(p) for p in loop_item.paradigm.list_preferences()]
+                items << [str(p) for p in loop_item.preferences[:]]
                 selected := loop_item.preference
                 to_string = lambda x: Path(x).stem
 

@@ -14,6 +14,9 @@ class Experiment(Atom):
 
     preference = Str()
 
+    #: List of available preferences. Primarily used for updating the GUI.
+    preferences = List()
+
     #: Plugins selected for load
     plugins = List(Str())
 
@@ -31,10 +34,16 @@ class Experiment(Atom):
     def _default_mode_notes(self):
         return {}
 
+    def update_preferences(self):
+        # This will force a change notification in the Enaml ObjectCombo,
+        # thereby refreshing the list of options.
+        self.preferences = self.paradigm.list_preferences().copy()
+
     def __init__(self, paradigm, plugins=None, preference=None, **kwargs):
         if isinstance(paradigm, str):
             paradigm = paradigm_manager.get_paradigm(paradigm)
         self.paradigm = paradigm
+        self.update_preferences()
 
         # Make sure the plugins saved to the config file are valid plugins (we
         # sometimes remove or rename plugins). If the plugin is no longer
@@ -53,7 +62,7 @@ class Experiment(Atom):
             preference = ''
         else:
             preference = Path(preference)
-            for valid_preference in paradigm.list_preferences():
+            for valid_preference in self.preferences:
                 if valid_preference.stem == preference.stem:
                     preference = str(valid_preference)
                     break
