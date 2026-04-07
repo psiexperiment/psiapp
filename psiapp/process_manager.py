@@ -126,11 +126,15 @@ class ProcessManager(Atom):
                 self.current_subprocess = None
             process['state'] = 'complete'
             self.duration = round(time.time() - self.exp_start_time)
+            # If the experiment ended in an error, then don't continue with the
+            # queue. Clear the queue as well.
             if message['info'].get('stop_reason') != '':
                 self.autostart = False
                 self.commands = []
-            # Now, start the next one if one exists.
-            if self.autostart:
+            # Now, start the next one if one exists. Make sure
+            # current_subprocess is not None just in case we get multiple stop
+            # events from a subprocess.
+            if self.autostart and self.current_subprocess is None:
                 self.open_next_subprocess()
         elif message['event'] == 'window_closed':
             # Window closed. Remove from the list of subprocesses.
