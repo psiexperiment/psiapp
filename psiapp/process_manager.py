@@ -4,6 +4,7 @@ log = logging.getLogger(__name__)
 import os
 import subprocess
 import threading
+import time
 
 from atom.api import Atom, Bool, Float, List, Typed, Value
 from enaml.application import timed_call
