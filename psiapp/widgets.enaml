@@ -25,6 +25,7 @@ enamldef AddParadigmPopup(PopupView): popup:
     attr experiment_box
     attr mode = 'classic'
     attr paradigms
+    attr exp_class = Experiment
     arrow_size = 20
 
     Container:
@@ -35,9 +36,9 @@ enamldef AddParadigmPopup(PopupView): popup:
         PushButton: pb_add:
             text = 'OK'
             clicked ::
-                exp = Experiment(paradigm=combo.selected)
+                exp = popup.exp_class(paradigm=combo.selected)
                 if mode == 'sequence':
-                    exp = exp.freeze(exp.paradigm.info['modes'][0], 'selected')
+                    exp = exp.freeze(exp.paradigm.info['modes'][0])
                 seq = experiment_box.sequence[:]
                 seq.append(exp)
                 experiment_box.sequence = seq
@@ -79,6 +80,7 @@ enamldef ExperimentSequence(Container): experiment_box:
     attr save = True
     attr mode = 'classic'
     attr paradigm_type = 'ear'
+    attr exp_class = Experiment
 
     attr sequence
     attr edit_mode = False
@@ -259,7 +261,8 @@ enamldef ExperimentSequence(Container): experiment_box:
                     parent=self,
                     paradigms=paradigm_manager.list_paradigms(paradigm_type),
                     experiment_box=experiment_box,
-                    mode=experiment_box.mode
+                    mode=experiment_box.mode,
+                    exp_class=experiment_box.exp_class,
                 )
                 popup.show()
 
