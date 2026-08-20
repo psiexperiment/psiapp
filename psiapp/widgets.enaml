@@ -87,6 +87,12 @@ enamldef ExperimentSequence(Container): experiment_box:
     attr settings
     attr autostart = False
 
+    #: Optional callback, called with the row's Experiment/FrozenExperiment
+    #: when a second per-row settings button is clicked -- e.g. CFTS's
+    #: per-paradigm monitor-inputs dialog. Renders nothing when None (the
+    #: default), so callers with no such feature need no changes here.
+    attr configure_channels = None
+
     StyleSheet:
         Style:
             element = 'Container'
@@ -244,6 +250,15 @@ enamldef ExperimentSequence(Container): experiment_box:
                         modes=loop_item.paradigm.info.get('modes', [])
                     )
                     popup.show()
+
+            Conditional:
+                condition << configure_channels is not None
+
+                PushButton:
+                    constraints = [width == 30]
+                    text = '📊'
+                    clicked ::
+                        configure_channels(loop_item)
 
     Container:
         padding = 0
