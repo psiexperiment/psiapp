@@ -256,7 +256,7 @@ enamldef ExperimentSequence(Container): experiment_box:
 
                 PushButton:
                     constraints = [width == 30]
-                    text = '📊'
+                    text = '🎙️'
                     clicked ::
                         configure_channels(loop_item)
 
