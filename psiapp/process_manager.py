@@ -1,6 +1,7 @@
 import logging
 log = logging.getLogger(__name__)
 
+import pprint
 import os
 import subprocess
 import threading
@@ -82,6 +83,8 @@ class ProcessManager(Atom):
             log.info('No more commands queued')
             return
         process = subprocess.Popen(cmd, env=dict(os.environ, **env))
+        log.info('Command: %s', ' '.join(cmd))
+        log.info('Environment Variables:\n%s', pprint.pformat(env))
         self.current_subprocess = {
             'cmd': cmd,
             'env': env,
