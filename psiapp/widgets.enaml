@@ -7,7 +7,7 @@ from .experiment import Experiment
 
 from cftscal.plugins.widgets import AddItem
 
-from enaml.core.api import Conditional, Looper
+from enaml.core.api import Conditional, Include, Looper
 from enaml.layout.api import align, hbox, spacer, vbox
 from enaml.drag_drop import DragData, DropAction
 from enaml.stdlib.message_box import critical
@@ -49,6 +49,14 @@ enamldef PluginPopup(PopupView): popup:
     attr experiment
     attr available_plugins
     attr modes
+
+    #: Optional factory, called with `experiment` and returning a list of
+    #: Enaml objects to embed inline in this popup -- e.g. CFTS's
+    #: per-paradigm monitor-inputs channel picker. Embeds nothing when
+    #: None (the default), so callers with no such feature need no
+    #: changes here.
+    attr build_channels_view = None
+
     arrow_size = 20
     VGroup:
         Form:
@@ -72,6 +80,11 @@ enamldef PluginPopup(PopupView): popup:
                     else:
                         experiment.plugins.remove(loop_item.id)
                 text = loop_item.title
+        Include:
+            objects << (
+                build_channels_view(experiment)
+                if build_channels_view is not None else []
+            )
 
 
 enamldef ExperimentSequence(Container): experiment_box:
@@ -87,11 +100,12 @@ enamldef ExperimentSequence(Container): experiment_box:
     attr settings
     attr autostart = False
 
-    #: Optional callback, called with the row's Experiment/FrozenExperiment
-    #: when a second per-row settings button is clicked -- e.g. CFTS's
-    #: per-paradigm monitor-inputs dialog. Renders nothing when None (the
-    #: default), so callers with no such feature need no changes here.
-    attr configure_channels = None
+    #: Optional factory, called with the row's Experiment/FrozenExperiment
+    #: and returning a list of Enaml objects to embed inline in that row's
+    #: ⚙ popup -- e.g. CFTS's per-paradigm monitor-inputs channel picker.
+    #: Embeds nothing when None (the default), so callers with no such
+    #: feature need no changes here.
+    attr build_channels_view = None
 
     StyleSheet:
         Style:
@@ -247,18 +261,10 @@ enamldef ExperimentSequence(Container): experiment_box:
                         parent=self,
                         experiment=loop_item,
                         available_plugins=plugins,
-                        modes=loop_item.paradigm.info.get('modes', [])
+                        modes=loop_item.paradigm.info.get('modes', []),
+                        build_channels_view=build_channels_view,
                     )
                     popup.show()
-
-            Conditional:
-                condition << configure_channels is not None
-
-                PushButton:
-                    constraints = [width == 30]
-                    text = '🎙️'
-                    clicked ::
-                        configure_channels(loop_item)
 
     Container:
         padding = 0
@@ -282,8 +288,6 @@ enamldef ExperimentSequence(Container): experiment_box:
                 popup.show()
 
         # A bit of a hack but enables us to ensure all columns lined up properly
-        Label:
-            pass
         Label:
             pass
         Label:
