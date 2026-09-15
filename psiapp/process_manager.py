@@ -133,8 +133,7 @@ class ProcessManager(Atom):
             # If the experiment ended in an error, then don't continue with the
             # queue. Clear the queue as well.
             if message['info'].get('stop_reason') != '':
-                self.autostart = False
-                self.commands = []
+                self._abort_queue()
             # Now, start the next one if one exists. Make sure
             # current_subprocess is not None just in case we get multiple stop
             # events from a subprocess.
@@ -144,12 +143,21 @@ class ProcessManager(Atom):
             # Window closed. Remove from the list of subprocesses.
             if process == self.current_subprocess:
                 self.current_subprocess = None
-            self.subprocesses.remove(process)
+                self._abort_queue()
+            self.subprocesses = [p for p in self.subprocesses if p[0] is not process]
 
     @synchronized
     def add_command(self, cmd, env, uid=None):
         log.info('Queueing command: %s', ' '.join(cmd))
         self.commands.append((cmd, env, uid))
+
+    @synchronized
+    def clear_commands(self):
+        self.commands = []
+
+    def _abort_queue(self):
+        self.autostart = False
+        self.commands = []
 
     @synchronized
     def pause_sequence(self):
@@ -164,4 +172,5 @@ class ProcessManager(Atom):
             if self.current_subprocess['process'].poll() is not None:
                 self.notify('subprocess_exited', self.current_subprocess['uid'])
                 self.current_subprocess = None
+                self._abort_queue()
         timed_call(1000, self.check_status)
