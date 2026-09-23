@@ -11,8 +11,15 @@ maintainers = [
 ]
 dependencies = [
     "enaml >=0.13.0",
+    "psiexperiment",
 ]
 dynamic = ["version"]
+
+[project.optional-dependencies]
+# Only needed to (re)generate launcher icons with psiapp.icons -- the icons
+# themselves ship as image files, so running a launcher never needs these.
+icons = ["matplotlib", "pillow"]
+test = ["pytest", "matplotlib", "pillow"]
 
 [build-system]
 requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
@@ -22,6 +29,7 @@ build-backend = "setuptools.build_meta"
 write_to = "psiapp/version.py"
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = [
     "slow: runs tests that will otherwise be skipped because they are slow"
 ]

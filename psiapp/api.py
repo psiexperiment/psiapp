@@ -7,4 +7,4 @@ from .util import set_app_id
 
 import enaml
 with enaml.imports():
-    from .widgets import AddRemoveCombo, ExperimentSequence
+    from .widgets import AddItem, AddRemoveCombo, ExperimentSequence
